@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
@@ -17,6 +18,7 @@ import ismin.cours.book.model.Book;
 import ismin.cours.book.repository.BookRepository;
 
 @RestController
+@RequestMapping("/api/book")
 public class BookController {
 
     private final BookRepository bookRepository;
@@ -25,13 +27,19 @@ public class BookController {
         this.bookRepository = bookRepository;
     }
 
-    @GetMapping("/api/book")
+    @GetMapping
     public List<Book> getAllBooks() {
         return bookRepository.findAll();
     }
 
-    @PostMapping("/api/book")
-    @ResponseStatus(HttpStatus.CREATED)
+    @GetMapping("/{id}")
+    public Book getBookById(@PathVariable Integer id) {
+        return bookRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "No book with id " + id));
+    }
+
+    @PostMapping
     public Book addBook(@RequestBody Book book) {
         if (bookRepository.existsByIsbn(book.getIsbn())) {
             throw new ResponseStatusException(
@@ -41,12 +49,12 @@ public class BookController {
         return bookRepository.save(book);
     }
 
-    @PutMapping("/api/book")
+    @PutMapping
     public Book updateBook(@RequestBody Book book) {
         return bookRepository.save(book);
     }
 
-    @DeleteMapping("/api/book/{id}")
+    @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteBook(@PathVariable Integer id) {
         if (!bookRepository.existsById(id)) {
