@@ -21,6 +21,10 @@ import ismin.cours.book.repository.BookRepository;
 @RequestMapping("/api/book")
 public class BookController {
 
+    /** Un ISBN valide compte 10 chiffres (ancien format) ou 13 (format actuel). */
+    private static final int ISBN_SHORT_LENGTH = 10;
+    private static final int ISBN_LONG_LENGTH = 13;
+
     private final BookRepository bookRepository;
 
     public BookController(BookRepository bookRepository) {
@@ -41,6 +45,7 @@ public class BookController {
 
     @PostMapping
     public Book addBook(@RequestBody Book book) {
+        validate(book);
         if (bookRepository.existsByIsbn(book.getIsbn())) {
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
@@ -51,6 +56,7 @@ public class BookController {
 
     @PutMapping
     public Book updateBook(@RequestBody Book book) {
+        validate(book);
         return bookRepository.save(book);
     }
 
@@ -62,5 +68,38 @@ public class BookController {
                     HttpStatus.NOT_FOUND, "No book with id " + id);
         }
         bookRepository.deleteById(id);
+    }
+
+    /**
+     * Contrôle qu'un livre est exploitable avant de l'enregistrer :
+     * ISBN de 10 ou 13 chiffres, titre, auteur et date de publication présents.
+     */
+    private void validate(Book book) {
+        long isbn = book.getIsbn();
+        if (isbn <= 0) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "isbn must be a positive number, received " + isbn);
+        }
+        int digits = String.valueOf(isbn).length();
+        if (digits != ISBN_SHORT_LENGTH && digits != ISBN_LONG_LENGTH) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "isbn must contain " + ISBN_SHORT_LENGTH + " or " + ISBN_LONG_LENGTH
+                            + " digits, received " + digits);
+        }
+        requireText(book.getTitle(), "title");
+        requireText(book.getWriter(), "writer");
+        if (book.getPublishingDate() == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "publishingDate is required");
+        }
+    }
+
+    /** Refuse une chaîne absente ou vide. */
+    private void requireText(String value, String fieldName) {
+        if (value == null || value.isBlank()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, fieldName + " is required");
+        }
     }
 }

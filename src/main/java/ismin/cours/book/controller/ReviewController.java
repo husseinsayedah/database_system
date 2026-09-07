@@ -22,6 +22,10 @@ import ismin.cours.book.repository.ReviewRepository;
 @RequestMapping("/api/review")
 public class ReviewController {
 
+    /** Bornes autorisées pour une note, conformément au sujet. */
+    private static final int MIN_RATING = 1;
+    private static final int MAX_RATING = 5;
+
     private final ReviewRepository reviewRepository;
     private final BookRepository bookRepository;
 
@@ -44,13 +48,13 @@ public class ReviewController {
 
     @PostMapping
     public Review addReview(@RequestBody Review review) {
-        requireExistingBook(review.getBookIsbn());
+        validate(review);
         return reviewRepository.save(review);
     }
 
     @PutMapping
     public Review updateReview(@RequestBody Review review) {
-        requireExistingBook(review.getBookIsbn());
+        validate(review);
         return reviewRepository.save(review);
     }
 
@@ -62,6 +66,24 @@ public class ReviewController {
                     HttpStatus.NOT_FOUND, "No review with id " + id);
         }
         reviewRepository.deleteById(id);
+    }
+
+    /**
+     * Contrôle qu'un avis est exploitable avant de l'enregistrer :
+     * note dans les bornes, date présente, et livre existant.
+     */
+    private void validate(Review review) {
+        if (review.getReviewRating() < MIN_RATING || review.getReviewRating() > MAX_RATING) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "reviewRating must be between " + MIN_RATING + " and " + MAX_RATING
+                            + ", received " + review.getReviewRating());
+        }
+        if (review.getReviewDate() == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "reviewDate is required");
+        }
+        requireExistingBook(review.getBookIsbn());
     }
 
     private void requireExistingBook(long bookIsbn) {
