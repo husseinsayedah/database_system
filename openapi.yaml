@@ -1,0 +1,352 @@
+openapi: 3.0.3
+
+info:
+  title: Book API
+  description: API de gestion des livres, des avis et des statistiques de popularité.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8080
+    description: Serveur local
+
+tags:
+  - name: Books
+    description: Gestion des livres
+  - name: Reviews
+    description: Gestion des avis
+  - name: Statistics
+    description: Statistiques et classement des livres
+
+paths:
+  /api/book:
+    get:
+      tags:
+        - Books
+      summary: Lister tous les livres
+      operationId: getBooks
+      responses:
+        "200":
+          description: Liste des livres
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Book"
+    post:
+      tags:
+        - Books
+      summary: Créer un livre
+      operationId: createBook
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Book"
+      responses:
+        "200":
+          description: Livre créé
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Book"
+    put:
+      tags:
+        - Books
+      summary: Créer ou mettre à jour un livre
+      operationId: updateBook
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Book"
+      responses:
+        "200":
+          description: Livre enregistré
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Book"
+
+  /api/book/{id}:
+    get:
+      tags:
+        - Books
+      summary: Obtenir un livre par son identifiant
+      operationId: getBookById
+      parameters:
+        - $ref: "#/components/parameters/BookId"
+      responses:
+        "200":
+          description: Livre trouvé. Le corps est vide si aucun livre ne correspond.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Book"
+        "404":
+          description: Aucun livre ne correspond à cet identifiant
+    delete:
+      tags:
+        - Books
+      summary: Supprimer un livre
+      operationId: deleteBook
+      parameters:
+        - $ref: "#/components/parameters/BookId"
+      responses:
+        "204":
+          description: Livre supprimé
+        "404":
+          description: Aucun livre ne correspond à cet identifiant
+
+  /api/review:
+    get:
+      tags:
+        - Reviews
+      summary: Lister tous les avis
+      operationId: getReviews
+      responses:
+        "200":
+          description: Liste des avis
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Review"
+    post:
+      tags:
+        - Reviews
+      summary: Créer un avis
+      operationId: createReview
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Review"
+      responses:
+        "200":
+          description: Avis créé
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Review"
+    put:
+      tags:
+        - Reviews
+      summary: Créer ou mettre à jour un avis
+      operationId: updateReview
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Review"
+      responses:
+        "200":
+          description: Avis enregistré
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Review"
+
+  /api/review/{id}:
+    get:
+      tags:
+        - Reviews
+      summary: Obtenir un avis par son identifiant
+      operationId: getReview
+      parameters:
+        - $ref: "#/components/parameters/ReviewId"
+      responses:
+        "200":
+          description: Avis trouvé. Le corps est vide si aucun avis ne correspond.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Review"
+        "404":
+          description: Aucun avis ne correspond à cet identifiant
+    delete:
+      tags:
+        - Reviews
+      summary: Supprimer un avis
+      operationId: deleteReview
+      parameters:
+        - $ref: "#/components/parameters/ReviewId"
+      responses:
+        "204":
+          description: Avis supprimé
+        "404":
+          description: Aucun avis ne correspond à cet identifiant
+
+  /api/books/{isbn}/statistics:
+    get:
+      tags:
+        - Statistics
+      summary: Obtenir les statistiques d'un livre
+      operationId: getBookStatistics
+      parameters:
+        - $ref: "#/components/parameters/Isbn"
+      responses:
+        "200":
+          description: Statistiques calculées. Le corps est vide si aucun livre ne correspond.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Statistic"
+
+  /api/books/ranking:
+    get:
+      tags:
+        - Statistics
+      summary: Obtenir le classement de tous les livres
+      operationId: getBookRanking
+      responses:
+        "200":
+          description: Livres classés selon leur score
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Score"
+
+components:
+  parameters:
+    BookId:
+      name: id
+      in: path
+      required: true
+      description: Identifiant du livre
+      schema:
+        type: integer
+        format: int64
+    ReviewId:
+      name: id
+      in: path
+      required: true
+      description: Identifiant de l'avis
+      schema:
+        type: integer
+        format: int64
+    Isbn:
+      name: isbn
+      in: path
+      required: true
+      description: ISBN numérique du livre
+      schema:
+        type: integer
+        format: int64
+
+  schemas:
+    Book:
+      type: object
+      required:
+        - id
+        - isbn
+        - writer
+        - title
+        - publishingDate
+      properties:
+        id:
+          type: integer
+          format: int32
+          description: Identifiant technique. Obligatoire avec l'implémentation actuelle.
+          example: 1
+        isbn:
+          type: integer
+          format: int64
+          example: 9782070368228
+        writer:
+          type: string
+          example: George Orwell
+        title:
+          type: string
+          example: "1984"
+        publishingDate:
+          type: string
+          format: date
+          example: "1949-06-08"
+
+    Review:
+      type: object
+      required:
+        - id
+        - bookIsbn
+        - reviewDate
+        - reviewText
+        - reviewRating
+      properties:
+        id:
+          type: integer
+          format: int32
+          description: Identifiant technique. Obligatoire avec l'implémentation actuelle.
+          example: 1
+        bookIsbn:
+          type: integer
+          format: int64
+          example: 9782070368228
+        reviewDate:
+          type: string
+          format: date
+          example: "2026-07-23"
+        reviewText:
+          type: string
+          example: Un classique incontournable.
+        reviewRating:
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 5
+          example: 5
+
+    Statistic:
+      type: object
+      required:
+        - mark
+        - numberOfReviews
+        - markRepartition
+        - score
+      properties:
+        mark:
+          type: number
+          format: float
+          description: Note moyenne
+          example: 4.2
+        numberOfReviews:
+          type: integer
+          format: int32
+          example: 12
+        markRepartition:
+          type: object
+          description: Nombre d'avis par note
+          additionalProperties:
+            type: integer
+            format: int32
+          example:
+            "1": 0
+            "2": 1
+            "3": 2
+            "4": 4
+            "5": 5
+        score:
+          type: number
+          format: float
+          description: Score de popularité calculé
+          example: 8.7
+
+    Score:
+      type: object
+      required:
+        - book
+        - score
+      properties:
+        book:
+          $ref: "#/components/schemas/Book"
+        score:
+          type: number
+          format: float
+          example: 8.7
