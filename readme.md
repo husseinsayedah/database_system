@@ -1,141 +1,201 @@
-# Lock'app Lite — Gestion de livres et d'avis
+# Book API
 
-Ce projet Java Spring Boot permet d'enregistrer des livres, de publier des avis et de consulter les informations stockées depuis une API HTTP.
+Backend Spring Boot de gestion de livres et d'avis de lecteurs, avec calcul
+de statistiques et classement pondéré des ouvrages.
 
-L'application est construite progressivement : création des modèles, ajout de la persistance, mise en place des routes CRUD, puis développement de traitements métier autour des notes.
+Projet réalisé dans le cadre du cours *java avancé* de l'ISMIN.
+L'énoncé d'origine est conservé dans [SUJET.md](SUJET.md), et le contrat
+d'API complet dans [openapi.yaml](openapi.yaml).
 
-## Chapitre 1 — Modèles
+## Sommaire
 
-Création du modèle `Book`, qui représente un livre avec les informations suivantes :
+- [Prérequis](#prérequis)
+- [Lancer le projet](#lancer-le-projet)
+- [Lancer les tests](#lancer-les-tests)
+- [Endpoints](#endpoints)
+- [Codes de retour](#codes-de-retour)
+- [Score pondéré](#score-pondéré)
+- [Architecture](#architecture)
+- [Base de données](#base-de-données)
 
-- un identifiant technique ;
-- un ISBN ;
-- un titre ;
-- un auteur ;
-- une date de publication.
+## Prérequis
 
-L'ISBN constitue l'identifiant fonctionnel du livre. Il doit contenir 10 ou 13 caractères et ne peut pas être utilisé par plusieurs livres.
+| Outil | Version |
+| --- | --- |
+| JDK | 21 |
+| Maven | fourni par le wrapper (`mvnw`) |
 
-Création du modèle `Review`, qui représente un avis publié sur un livre :
+Aucune base de données à installer : SQLite tient dans un simple fichier,
+créé automatiquement au premier démarrage.
 
-- un identifiant ;
-- l'ISBN du livre concerné ;
-- une note ;
-- un commentaire ;
-- une date de publication.
-
-Un livre peut recevoir plusieurs avis. La note associée à un avis est comprise entre 1 et 5.
-
-## Chapitre 2 — Base de données
-
-Ajout de Spring Data JPA et de SQLite afin de rendre les livres et les avis persistants.
-
-La base de données contient :
-
-- une table pour les livres ;
-- une table pour les avis ;
-- une relation permettant d'associer plusieurs avis à un même livre.
-
-Des repositories Spring Data JPA permettent d'enregistrer, rechercher, modifier et supprimer les données sans écrire manuellement toutes les requêtes SQL.
-
-Flyway est utilisé pour créer et faire évoluer la structure de la base de données à partir de migrations versionnées.
-
-## Chapitre 3 — Controllers CRUD
-
-Création des controllers REST permettant de gérer les livres et les avis depuis une API HTTP.
-
-### Livres
-
-| Méthode | Route | Description |
-| --- | --- | --- |
-| `POST` | `/api/book` | Ajouter un livre |
-| `GET` | `/api/book` | Rechercher ou lister les livres |
-| `PUT` | `/api/book/{isbn}` | Modifier un livre |
-| `DELETE` | `/api/book/{isbn}` | Supprimer un livre |
-
-La recherche d'un livre peut être filtrée par ISBN, titre, auteur ou date de publication.
-
-### Avis
-
-| Méthode | Route | Description |
-| --- | --- | --- |
-| `POST` | `/api/review` | Publier un avis |
-| `GET` | `/api/review` | Rechercher ou lister les avis |
-| `PUT` | `/api/review/{id}` | Modifier un avis |
-| `DELETE` | `/api/review/{id}` | Supprimer un avis |
-
-Les controllers renvoient un code HTTP adapté au résultat de chaque opération : création, succès, données invalides, ressource absente ou conflit d'ISBN.
-
-Le contrat détaillé de l'API est disponible dans le fichier `swagger.yml`.
-
-À la fin de ce chapitre, le projet fournit une API CRUD connectée à la base de données SQLite et consommable par l'interface Angular.
-
-## Chapitre 4 — Statistiques et classement des livres
-
-Ajout d'un service chargé d'exploiter les avis afin de produire des informations utiles sur chaque livre.
-
-Le service peut notamment calculer :
-
-- la note moyenne d'un livre ;
-- son nombre total d'avis ;
-- la répartition des notes de 1 à 5 ;
-- l'évolution récente de sa note ;
-- un score pondéré utilisé pour le classement.
-
-Le classement ne repose pas uniquement sur la moyenne. Il tient également compte du nombre d'avis afin d'éviter qu'un livre ayant reçu une seule excellente note soit automatiquement classé devant un livre évalué de nombreuses fois.
-
-Une proposition consiste à utiliser le score pondéré suivant :
-
-```text
-score = (v / (v + m)) × R + (m / (v + m)) × C
-```
-
-avec :
-
-- `R` : la note moyenne du livre ;
-- `v` : le nombre d'avis reçus par le livre ;
-- `C` : la note moyenne de l'ensemble des livres ;
-- `m` : le nombre minimal d'avis choisi comme seuil de confiance.
-
-Lorsqu'un livre possède peu d'avis, son score reste proche de la moyenne générale `C`. Plus son nombre d'avis augmente, plus le classement repose sur sa propre moyenne `R`. La valeur de `m` peut être ajustée selon la quantité d'avis disponible, par exemple à `10` pour un catalogue de petite taille.
-
-Exemple pour un livre ayant une moyenne de `4,5` sur `20` avis, avec une moyenne générale de `3,8` et un seuil de confiance fixé à `10` :
-
-```text
-score = (20 / 30) × 4,5 + (10 / 30) × 3,8
-score ≈ 4,27
-```
-
-Les principales routes prévues sont :
-
-| Méthode | Route | Description |
-| --- | --- | --- |
-| `GET` | `/api/books/{isbn}/statistics` | Consulter les statistiques d'un livre |
-| `GET` | `/api/books/ranking` | Consulter le classement pondéré des livres |
-
-Ce chapitre ajoute la logique métier principale du backend : la base de données conserve les livres et les avis, tandis que le service Java agrège les notes et les transforme en statistiques exploitables.
-
-
-## Lancement du projet
-
-### Backend
+## Lancer le projet
 
 ```bash
 ./mvnw spring-boot:run
 ```
 
-### Tests
+Le backend écoute sur **http://localhost:8080**.
+
+Au démarrage, Flyway crée les tables si nécessaire, puis Hibernate vérifie
+que les entités Java correspondent bien au schéma. Un écart fait échouer le
+démarrage plutôt que corrompre les données.
+
+Vérification rapide, une fois lancé :
+
+```bash
+curl http://localhost:8080/api/book
+```
+
+## Lancer les tests
 
 ```bash
 ./mvnw test
 ```
 
-### Frontend
+23 tests, écrits selon le principe GIVEN / WHEN / THEN. Ils s'exécutent sur
+une base dédiée (`target/test.sqlite`) et ne touchent jamais la base de
+développement. Chaque test repart d'une base vide, ce qui les rend
+indépendants de leur ordre d'exécution.
+
+Le style du code est vérifié séparément :
 
 ```bash
-cd frontend
-npm install
-npm start
+./mvnw checkstyle:check
 ```
 
-Le backend est accessible localement sur le port `6007`.
+Les deux commandes sont rejouées par la CI à chaque push sur `main`.
+
+## Endpoints
+
+### Livres
+
+| Méthode | Route | Description |
+| --- | --- | --- |
+| `GET` | `/api/book` | Lister tous les livres |
+| `GET` | `/api/book/{id}` | Obtenir un livre par son identifiant technique |
+| `POST` | `/api/book` | Ajouter un livre |
+| `PUT` | `/api/book` | Créer ou mettre à jour un livre |
+| `DELETE` | `/api/book/{id}` | Supprimer un livre |
+
+### Avis
+
+| Méthode | Route | Description |
+| --- | --- | --- |
+| `GET` | `/api/review` | Lister tous les avis |
+| `GET` | `/api/review/{id}` | Obtenir un avis par son identifiant |
+| `POST` | `/api/review` | Publier un avis |
+| `PUT` | `/api/review` | Créer ou mettre à jour un avis |
+| `DELETE` | `/api/review/{id}` | Supprimer un avis |
+
+### Statistiques
+
+| Méthode | Route | Description |
+| --- | --- | --- |
+| `GET` | `/api/books/{isbn}/statistics` | Statistiques d'un livre |
+| `GET` | `/api/books/ranking` | Classement pondéré des livres |
+
+### Exemples
+
+Ajouter un livre :
+
+```bash
+curl -X POST http://localhost:8080/api/book \
+  -H "Content-Type: application/json" \
+  -d '{"isbn":9782070368228,"writer":"George Orwell","title":"1984","publishingDate":"1949-06-08"}'
+```
+
+Publier un avis :
+
+```bash
+curl -X POST http://localhost:8080/api/review \
+  -H "Content-Type: application/json" \
+  -d '{"bookIsbn":9782070368228,"reviewDate":"2026-09-07","reviewText":"Un classique","reviewRating":5}'
+```
+
+Consulter les statistiques :
+
+```bash
+curl http://localhost:8080/api/books/9782070368228/statistics
+```
+
+```json
+{
+  "mark": 4.571429,
+  "numberOfReviews": 7,
+  "markRepartition": { "1": 0, "2": 0, "3": 0, "4": 3, "5": 4 },
+  "score": 4.6029415
+}
+```
+
+## Codes de retour
+
+| Code | Signification | Exemple |
+| --- | --- | --- |
+| `200` | Succès | lecture, création, mise à jour |
+| `204` | Supprimé, sans contenu | `DELETE` réussi |
+| `400` | Données invalides | note hors de 1–5, ISBN qui n'a pas 10 ou 13 chiffres, titre absent |
+| `404` | Ressource absente | livre ou avis inexistant |
+| `409` | Conflit | ISBN déjà utilisé par un autre livre |
+
+Une requête invalide ne provoque jamais de `500` : elle est refusée avant
+d'atteindre la base, avec un message expliquant le problème.
+
+## Score pondéré
+
+Le classement ne repose pas sur la moyenne seule, sinon un livre noté une
+fois 5/5 devancerait un livre noté cinquante fois 4,8.
+
+```
+score = (v / (v + m)) × R  +  (m / (v + m)) × C
+```
+
+| Symbole | Signification |
+| --- | --- |
+| `R` | note moyenne du livre |
+| `v` | nombre d'avis reçus par le livre |
+| `C` | note moyenne de l'ensemble du catalogue |
+| `m` | seuil de confiance, fixé à 10 |
+
+Tant qu'un livre a peu d'avis, son score reste proche de la moyenne
+générale `C`. Plus il en accumule, plus son propre `R` domine.
+
+Les livres sans aucun avis sont **exclus du classement** : la formule leur
+attribuerait exactement `C`, ce qui les placerait au-dessus de livres
+réellement notés mais légèrement en dessous de cette moyenne. Leurs
+statistiques restent consultables individuellement.
+
+## Architecture
+
+```
+controller  →  service  →  repository  →  base de données
+  (HTTP)      (calculs)     (accès)         (SQLite)
+```
+
+| Package | Rôle |
+| --- | --- |
+| `controller` | Réception des requêtes HTTP, validation, codes de retour |
+| `service` | Logique métier : statistiques et classement |
+| `repository` | Interfaces Spring Data, aucune requête SQL écrite à la main |
+| `model` | Entités JPA persistées : `Book`, `Review` |
+| `dto` | Objets de réponse non persistés : `Statistic`, `Score` |
+| `config` | Configuration CORS |
+
+Les calculs vivent dans le service et non dans le contrôleur, ce qui permet
+de les tester sans démarrer de serveur web.
+
+## Base de données
+
+SQLite, dans le fichier `base.sqlite` à la racine. Ce fichier est généré et
+n'est pas versionné.
+
+Le schéma est géré par **Flyway** : chaque évolution est un script numéroté
+dans `src/main/resources/db/migration/`, appliqué une seule fois et tracé
+dans la table `flyway_schema_history`.
+
+Hibernate est configuré en `ddl-auto=validate` : il ne modifie jamais le
+schéma, il vérifie seulement que les entités lui correspondent. Flyway
+construit, Hibernate contrôle.
+
+Pour repartir d'une base vierge en développement, supprimer `base.sqlite`
+et relancer l'application. **Ne jamais modifier une migration déjà
+appliquée** : Flyway en conserve une empreinte et refuserait de démarrer.
